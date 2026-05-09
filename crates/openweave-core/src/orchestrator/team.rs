@@ -6,6 +6,12 @@ pub struct AgentTeam {
     agents: HashMap<String, (Agent, String)>, // name -> (agent, description)
 }
 
+impl Default for AgentTeam {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AgentTeam {
     pub fn new() -> Self {
         Self {

@@ -1,7 +1,9 @@
 use crate::error::{Result, WeaveError};
-use crate::llm::{LLMProvider, Message, Role, ToolCall};
-use crate::memory::{Memory, ShortTermMemory};
-use crate::planner::{Planner, ReActPlanner};
+use crate::llm::{LLMProvider, Message, Role};
+use crate::memory::short_term::ShortTermMemory;
+use crate::memory::Memory;
+use crate::planner::react::ReActPlanner;
+use crate::planner::Planner;
 use crate::tools::executor::ToolExecutor;
 use crate::tools::registry::ToolRegistry;
 use std::sync::Arc;
@@ -81,6 +83,15 @@ impl Agent {
 
         for i in 0..self.config.max_iterations {
             let context = memory.get_context();
+            
+            // Ask planner for next step. Default ReAct uses LLM directly.
+            let step = self.planner.plan(&context);
+
+            if let crate::planner::PlanStep::Respond(_text) = step {
+                // Fallback or early termination from planner
+                // The standard ReAct uses the LLM complete.
+            }
+
             let msg = self.llm.complete(&context, &schemas).await?;
             
             memory.add(msg.clone())?;
@@ -98,12 +109,12 @@ impl Agent {
                 tool_calls_made += calls.len();
                 let results = executor.execute_all(calls.clone()).await;
                 
-                for (call, result) in calls.iter().zip(results.into_iter()) {
+                for (call, result) in calls.iter().zip(results) {
                     let content = result.unwrap_or_else(|e| format!("Error: {}", e));
                     memory.add(Message {
                         role: Role::Tool,
                         content,
-                        tool_calls: None,
+                        tool_calls: Some(vec![call.clone()]),
                     })?;
                 }
             } else {

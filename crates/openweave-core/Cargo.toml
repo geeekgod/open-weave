@@ -15,3 +15,12 @@ futures.workspace = true
 uuid.workspace = true
 thiserror.workspace = true
 wasmtime.workspace = true
+tracing = "0.1.44"
+
+[[example]]
+name = "research_agent"
+path = "../../examples/rust/research_agent.rs"
+
+[[example]]
+name = "multi_agent_team"
+path = "../../examples/rust/multi_agent_team.rs"

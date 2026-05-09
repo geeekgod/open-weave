@@ -3,6 +3,12 @@ use crate::llm::{Message, Role};
 
 pub struct ReActPlanner;
 
+impl Default for ReActPlanner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ReActPlanner {
     pub fn new() -> Self {
         Self

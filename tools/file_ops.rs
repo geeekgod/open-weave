@@ -12,6 +12,12 @@ impl FileOpsTool {
     }
 }
 
+impl Default for FileOpsTool {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[async_trait]
 impl Tool for FileOpsTool {
     fn name(&self) -> &str {
@@ -19,18 +25,19 @@ impl Tool for FileOpsTool {
     }
 
     fn description(&self) -> &str {
-        "Read or write files"
+        "Read or write files to the local disk"
     }
 
     fn schema(&self) -> Value {
         json!({
             "name": "file_ops",
+            "description": "Read or write files to the local disk",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "action": { "type": "string", "enum": ["read", "write"] },
-                    "path": { "type": "string" },
-                    "content": { "type": "string" }
+                    "action": { "type": "string", "enum": ["read", "write"], "description": "The action to perform: read or write" },
+                    "path": { "type": "string", "description": "The path to the file" },
+                    "content": { "type": "string", "description": "The content to write to the file (only for write action)" }
                 },
                 "required": ["action", "path"]
             }
@@ -49,9 +56,9 @@ impl Tool for FileOpsTool {
             "write" => {
                 let content = input.get("content").and_then(|v| v.as_str()).unwrap_or("");
                 fs::write(path, content)?;
-                Ok("Success".into())
+                Ok(format!("Successfully wrote to {}", path))
             }
-            _ => Err(WeaveError::ToolNotFound("Invalid action".into())),
+            _ => Err(WeaveError::ToolNotFound(format!("Invalid action for file_ops: {}", action))),
         }
     }
 }

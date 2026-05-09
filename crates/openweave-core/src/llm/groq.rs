@@ -5,15 +5,15 @@ use futures::stream::Stream;
 use reqwest::Client;
 use serde_json::json;
 
-pub struct OpenAIProvider {
+pub struct GroqProvider {
     client: Client,
     model: String,
     api_key: String,
 }
 
-impl OpenAIProvider {
+impl GroqProvider {
     pub fn new(model: impl Into<String>) -> Self {
-        let api_key = std::env::var("OPENAI_API_KEY").unwrap_or_default();
+        let api_key = std::env::var("GROQ_API_KEY").unwrap_or_default();
         Self {
             client: Client::new(),
             model: model.into(),
@@ -28,7 +28,7 @@ impl OpenAIProvider {
 }
 
 #[async_trait]
-impl LLMProvider for OpenAIProvider {
+impl LLMProvider for GroqProvider {
     async fn complete(&self, messages: &[Message], tools: &[serde_json::Value]) -> Result<Message> {
         let mut body = json!({
             "model": self.model,
@@ -45,17 +45,18 @@ impl LLMProvider for OpenAIProvider {
                     "content": m.content,
                 });
                 
-                if role == "tool" {
+                if m.role == Role::Tool {
+                    // Groq/OpenAI tool response needs `tool_call_id` and `name` at root level, not inside `tool_calls`
                     if let Some(calls) = &m.tool_calls {
                         if let Some(call) = calls.first() {
                             msg["tool_call_id"] = json!(call.id);
+                            msg["name"] = json!(call.name);
                         }
                     } else {
+                        // Fallback id if lost
                         msg["tool_call_id"] = json!("unknown");
                     }
-                }
-                
-                if let Some(calls) = &m.tool_calls {
+                } else if let Some(calls) = &m.tool_calls {
                     let tool_calls: Vec<_> = calls.iter().map(|c| {
                         json!({
                             "id": c.id,
@@ -81,7 +82,7 @@ impl LLMProvider for OpenAIProvider {
             }).collect::<Vec<_>>());
         }
 
-        let res = self.client.post("https://api.openai.com/v1/chat/completions")
+        let res = self.client.post("https://api.groq.com/openai/v1/chat/completions")
             .header("Authorization", format!("Bearer {}", self.api_key))
             .header("Content-Type", "application/json")
             .json(&body)
@@ -91,7 +92,7 @@ impl LLMProvider for OpenAIProvider {
 
         if !res.status().is_success() {
             let err_text = res.text().await.unwrap_or_default();
-            return Err(WeaveError::LlmError(format!("OpenAI API error: {}", err_text)));
+            return Err(WeaveError::LlmError(format!("Groq API error: {}", err_text)));
         }
 
         let json_res: serde_json::Value = res.json().await

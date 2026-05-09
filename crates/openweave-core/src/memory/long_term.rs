@@ -1,6 +1,7 @@
 use super::Memory;
 use crate::error::Result;
 use crate::llm::Message;
+use std::cmp::Ordering;
 
 pub struct LongTermMemory {
     // text, embedding, metadata
@@ -14,17 +15,45 @@ impl LongTermMemory {
         }
     }
     
-    // Naive cosine similarity for MVP
-    pub fn search(&self, _embedding: &[f32], _limit: usize) -> Vec<String> {
-        // TODO: implement cosine similarity
-        Vec::new()
+    pub fn search(&self, query_embedding: &[f32], limit: usize) -> Vec<String> {
+        if query_embedding.is_empty() || limit == 0 {
+            return Vec::new();
+        }
+
+        let mut scored_records: Vec<(&String, f32)> = self.records
+            .iter()
+            .filter(|(_, emb, _)| emb.len() == query_embedding.len())
+            .map(|(text, emb, _meta)| {
+                let score = cosine_similarity(query_embedding, emb);
+                (text, score)
+            })
+            .collect();
+
+        // Sort descending by score
+        scored_records.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(Ordering::Equal));
+
+        scored_records
+            .into_iter()
+            .take(limit)
+            .map(|(text, _score)| text.clone())
+            .collect()
+    }
+
+    // Direct insertion method bypassing standard add() since we don't have embedder built-in
+    pub fn insert(&mut self, text: String, embedding: Vec<f32>, metadata: String) {
+        self.records.push((text, embedding, metadata));
+    }
+}
+
+impl Default for LongTermMemory {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
 impl Memory for LongTermMemory {
     fn add(&mut self, _message: Message) -> Result<()> {
-        // TODO: Need embedding function injection
-        Ok(())
+        Err(crate::error::WeaveError::MemoryError("Memory::add not implemented: embeddings required".into()))
     }
 
     fn get_context(&self) -> Vec<Message> {
@@ -35,4 +64,26 @@ impl Memory for LongTermMemory {
     fn clear(&mut self) {
         self.records.clear();
     }
+}
+
+fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
+    if a.len() != b.len() || a.is_empty() {
+        return 0.0;
+    }
+
+    let mut dot_product = 0.0;
+    let mut norm_a = 0.0;
+    let mut norm_b = 0.0;
+
+    for (x, y) in a.iter().zip(b.iter()) {
+        dot_product += x * y;
+        norm_a += x * x;
+        norm_b += y * y;
+    }
+
+    if norm_a == 0.0 || norm_b == 0.0 {
+        return 0.0;
+    }
+
+    dot_product / (norm_a.sqrt() * norm_b.sqrt())
 }

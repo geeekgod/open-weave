@@ -55,3 +55,11 @@ openweave.h
 .vscode/
 *.swp
 *.swo
+
+# Environment
+.env
+.env.local
+.env.staging
+.env.release
+.env.uat
+.env.production
