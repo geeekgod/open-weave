@@ -15,6 +15,7 @@ futures.workspace = true
 uuid.workspace = true
 thiserror.workspace = true
 wasmtime.workspace = true
+tracing = "0.1.44"
 
 [[example]]
 name = "research_agent"

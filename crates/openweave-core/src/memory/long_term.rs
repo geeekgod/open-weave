@@ -18,6 +18,7 @@ impl LongTermMemory {
     pub fn search(&self, query_embedding: &[f32], limit: usize) -> Vec<String> {
         let mut scored_records: Vec<(&String, f32)> = self.records
             .iter()
+            .filter(|(_, emb, _)| emb.len() == query_embedding.len())
             .map(|(text, emb, _meta)| {
                 let score = cosine_similarity(query_embedding, emb);
                 (text, score)
@@ -48,9 +49,7 @@ impl Default for LongTermMemory {
 
 impl Memory for LongTermMemory {
     fn add(&mut self, _message: Message) -> Result<()> {
-        // Core trait assumes standard messages. To do this properly requires 
-        // an async embedder injected into the memory, or passing embeddings.
-        Ok(())
+        Err(crate::error::WeaveError::MemoryError("Memory::add not implemented: embeddings required".into()))
     }
 
     fn get_context(&self) -> Vec<Message> {

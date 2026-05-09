@@ -45,6 +45,16 @@ impl LLMProvider for OpenAIProvider {
                     "content": m.content,
                 });
                 
+                if role == "tool" {
+                    if let Some(calls) = &m.tool_calls {
+                        if let Some(call) = calls.first() {
+                            msg["tool_call_id"] = json!(call.id);
+                        }
+                    } else {
+                        msg["tool_call_id"] = json!("unknown");
+                    }
+                }
+                
                 if let Some(calls) = &m.tool_calls {
                     let tool_calls: Vec<_> = calls.iter().map(|c| {
                         json!({

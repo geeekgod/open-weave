@@ -98,15 +98,19 @@ impl LLMProvider for AnthropicProvider {
         }
 
         if !tools.is_empty() {
-            body["tools"] = json!(tools.iter().map(|t| {
+            let mut mapped_tools = Vec::new();
+            for t in tools {
                 let mut tool_schema = t.clone();
-                // Map from OpenAI JSON schema (parameters) to Anthropic (input_schema)
                 if let Some(params) = tool_schema.get("parameters").cloned() {
-                    tool_schema.as_object_mut().unwrap().remove("parameters");
-                    tool_schema.as_object_mut().unwrap().insert("input_schema".to_string(), params);
+                    let obj = tool_schema.as_object_mut().ok_or_else(|| {
+                        WeaveError::LlmError("Invalid tool schema: not an object".into())
+                    })?;
+                    obj.remove("parameters");
+                    obj.insert("input_schema".to_string(), params);
                 }
-                tool_schema
-            }).collect::<Vec<_>>());
+                mapped_tools.push(tool_schema);
+            }
+            body["tools"] = json!(mapped_tools);
         }
 
         let res = self.client.post("https://api.anthropic.com/v1/messages")

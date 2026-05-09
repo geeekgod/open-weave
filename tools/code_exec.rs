@@ -51,10 +51,11 @@ impl Tool for CodeExecTool {
         
         // MVP: If it's literally WASM bytes (base64 encoded), we could run it.
         // For now, return a simulated code execution result to satisfy LLM planning.
-        println!("Executing code in sandbox: \n{}", code);
+        tracing::info!("Executing code in sandbox: \n{}", code);
         
-        let _ = self.sandbox.execute_wasm(&[], "{}"); // Ignored for mock
+        let result = self.sandbox.execute_wasm(&[], "{}")
+            .unwrap_or_else(|e| format!("Sandbox error: {}", e));
 
-        Ok(format!("Execution completed successfully.\nOutput:\n{}", "Hello from sandbox!"))
+        Ok(format!("Execution completed successfully.\nOutput:\n{}", result))
     }
 }

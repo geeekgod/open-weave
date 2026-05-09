@@ -30,35 +30,43 @@ impl OllamaProvider {
 #[async_trait]
 impl LLMProvider for OllamaProvider {
     async fn complete(&self, messages: &[Message], tools: &[serde_json::Value]) -> Result<Message> {
+        let mut api_messages = Vec::new();
+        
+        for m in messages {
+            let role = match m.role {
+                Role::System => "system",
+                Role::User => "user",
+                Role::Assistant => "assistant",
+                Role::Tool => "tool",
+            };
+            
+            let mut msg = json!({
+                "role": role,
+                "content": m.content,
+            });
+            
+            if let Some(calls) = &m.tool_calls {
+                let mut tool_calls = Vec::new();
+                for c in calls {
+                    let parsed_args = serde_json::from_str::<serde_json::Value>(&c.arguments)
+                        .map_err(|e| WeaveError::LlmError(format!("Invalid tool arguments JSON: {}", e)))?;
+                        
+                    tool_calls.push(json!({
+                        "function": {
+                            "name": c.name,
+                            "arguments": parsed_args
+                        }
+                    }));
+                }
+                msg["tool_calls"] = json!(tool_calls);
+            }
+            api_messages.push(msg);
+        }
+
         let mut body = json!({
             "model": self.model,
             "stream": false,
-            "messages": messages.iter().map(|m| {
-                let role = match m.role {
-                    Role::System => "system",
-                    Role::User => "user",
-                    Role::Assistant => "assistant",
-                    Role::Tool => "tool",
-                };
-                
-                let mut msg = json!({
-                    "role": role,
-                    "content": m.content,
-                });
-                
-                if let Some(calls) = &m.tool_calls {
-                    let tool_calls: Vec<_> = calls.iter().map(|c| {
-                        json!({
-                            "function": {
-                                "name": c.name,
-                                "arguments": serde_json::from_str::<serde_json::Value>(&c.arguments).unwrap_or(json!({}))
-                            }
-                        })
-                    }).collect();
-                    msg["tool_calls"] = json!(tool_calls);
-                }
-                msg
-            }).collect::<Vec<_>>()
+            "messages": api_messages
         });
 
         if !tools.is_empty() {

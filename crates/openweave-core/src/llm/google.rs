@@ -72,10 +72,16 @@ impl LLMProvider for GoogleProvider {
                         .map(|c| c.name.clone())
                         .unwrap_or_else(|| "unknown".to_string());
                         
+                    let tool_id = m.tool_calls.as_ref()
+                        .and_then(|calls| calls.first())
+                        .map(|c| c.id.clone())
+                        .unwrap_or_else(|| "unknown".to_string());
+                        
                     contents.push(json!({
-                        "role": "function",
+                        "role": "user",
                         "parts": [{
                             "functionResponse": {
+                                "id": tool_id,
                                 "name": tool_name,
                                 "response": {
                                     "result": m.content

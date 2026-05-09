@@ -16,6 +16,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .find(|line| line.starts_with("GROQ_API_KEY="))
         .map(|line| line.trim_start_matches("GROQ_API_KEY=").trim().to_string())
         .unwrap_or_else(|| std::env::var("GROQ_API_KEY").unwrap_or_default());
+        
+    if key.is_empty() {
+        panic!("GROQ_API_KEY not set; set in .env or env var");
+    }
 
     let llm = Arc::new(GroqProvider::new("openai/gpt-oss-20b").with_api_key(key));
     
