@@ -45,7 +45,18 @@ impl LLMProvider for GroqProvider {
                     "content": m.content,
                 });
                 
-                if let Some(calls) = &m.tool_calls {
+                if m.role == Role::Tool {
+                    // Groq/OpenAI tool response needs `tool_call_id` and `name` at root level, not inside `tool_calls`
+                    if let Some(calls) = &m.tool_calls {
+                        if let Some(call) = calls.first() {
+                            msg["tool_call_id"] = json!(call.id);
+                            msg["name"] = json!(call.name);
+                        }
+                    } else {
+                        // Fallback id if lost
+                        msg["tool_call_id"] = json!("unknown");
+                    }
+                } else if let Some(calls) = &m.tool_calls {
                     let tool_calls: Vec<_> = calls.iter().map(|c| {
                         json!({
                             "id": c.id,
