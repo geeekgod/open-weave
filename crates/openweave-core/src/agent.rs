@@ -62,6 +62,26 @@ impl Agent {
         }
     }
 
+    /// Run the agent on a user-provided input, producing a final response after iterative planning, LLM completions, and any requested tool executions.
+    ///
+    /// The agent initializes short-term memory with a system prompt and the user input, then iterates up to `config.max_iterations`. In each iteration it:
+    /// - Builds the current context from memory and consults the planner for the next step.
+    /// - Calls the LLM to produce a message and appends that message to memory.
+    /// - If the LLM message contains tool calls, executes them, appends each tool result (or an `"Error: ..."` string) to memory, and continues; if the message contains an empty list of tool calls or no tool calls, the current message content is returned as the final output.
+    ///
+    /// On success returns an `AgentOutput` containing the final content, the number of iterations used, the number of tool calls executed, and the elapsed duration in milliseconds. Errors from memory operations, LLM completion, or tool execution propagate as `Err`, and if the maximum number of iterations is reached without producing a terminal message this returns `WeaveError::MaxIterationsReached`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use std::sync::Arc;
+    /// # // setup a mock LLM and agent here...
+    /// # async fn example(agent: Arc<crate::agent::Agent>) {
+    /// let output = agent.run("Summarize the following text.").await.unwrap();
+    /// assert!(output.content.len() > 0);
+    /// assert!(output.iterations_used >= 1);
+    /// # }
+    /// ```
     pub async fn run(&self, input: &str) -> Result<AgentOutput> {
         let mut memory = ShortTermMemory::default();
         memory.add(Message {
