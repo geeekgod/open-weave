@@ -87,12 +87,9 @@ impl Agent {
             // Ask planner for next step. Default ReAct uses LLM directly.
             let step = self.planner.plan(&context);
 
-            match step {
-                crate::planner::PlanStep::Respond(_text) => {
-                    // Fallback or early termination from planner
-                    // The standard ReAct uses the LLM complete.
-                }
-                _ => {}
+            if let crate::planner::PlanStep::Respond(_text) = step {
+                // Fallback or early termination from planner
+                // The standard ReAct uses the LLM complete.
             }
 
             let msg = self.llm.complete(&context, &schemas).await?;
@@ -112,7 +109,7 @@ impl Agent {
                 tool_calls_made += calls.len();
                 let results = executor.execute_all(calls.clone()).await;
                 
-                for (call, result) in calls.iter().zip(results.into_iter()) {
+                for (call, result) in calls.iter().zip(results) {
                     let content = result.unwrap_or_else(|e| format!("Error: {}", e));
                     memory.add(Message {
                         role: Role::Tool,

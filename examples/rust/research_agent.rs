@@ -15,6 +15,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .lines()
         .find(|line| line.starts_with("GROQ_API_KEY="))
         .map(|line| line.trim_start_matches("GROQ_API_KEY=").trim().to_string())
+        .filter(|s| !s.is_empty())
         .unwrap_or_else(|| std::env::var("GROQ_API_KEY").unwrap_or_default());
         
     if key.is_empty() {
@@ -38,9 +39,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Final Result: {}", res.content);
     println!("Used {} iterations, {} ms", res.iterations_used, res.duration_ms);
     
-    if std::path::Path::new("research.txt").exists() {
-        println!("Content of research.txt:\n{}", std::fs::read_to_string("research.txt").unwrap());
-        let _ = std::fs::remove_file("research.txt");
+    if let Ok(content) = std::fs::read_to_string("research.txt") {
+        println!("Content of research.txt:\n{}", content);
+        if let Err(e) = std::fs::remove_file("research.txt") {
+            eprintln!("failed to remove research.txt: {}", e);
+        }
     }
     
     Ok(())

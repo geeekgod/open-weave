@@ -19,7 +19,7 @@ impl ToolExecutor {
             let registry = Arc::clone(&self.registry);
             async move {
                 let input = serde_json::from_str(&call.arguments)
-                    .map_err(|e| WeaveError::SerdeError(e))?;
+                    .map_err(WeaveError::SerdeError)?;
                 
                 // 30s timeout per tool execution
                 match timeout(Duration::from_secs(30), registry.execute(&call.name, input)).await {

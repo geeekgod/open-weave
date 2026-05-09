@@ -16,6 +16,10 @@ impl LongTermMemory {
     }
     
     pub fn search(&self, query_embedding: &[f32], limit: usize) -> Vec<String> {
+        if query_embedding.is_empty() || limit == 0 {
+            return Vec::new();
+        }
+
         let mut scored_records: Vec<(&String, f32)> = self.records
             .iter()
             .filter(|(_, emb, _)| emb.len() == query_embedding.len())
