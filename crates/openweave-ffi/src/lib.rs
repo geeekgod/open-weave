@@ -1,0 +1,92 @@
+use openweave_core::agent::{Agent, AgentConfig};
+use openweave_core::llm::openai::OpenAIProvider;
+use std::ffi::{CStr, CString};
+use std::os::raw::{c_char, c_int};
+use std::sync::{Arc, Mutex};
+use tokio::runtime::Runtime;
+
+pub struct AgentHandle {
+    agent: Arc<Mutex<Agent>>,
+    rt: Runtime,
+}
+
+#[no_mangle]
+pub extern "C" fn ow_agent_create(config_json: *const c_char) -> *mut AgentHandle {
+    if config_json.is_null() {
+        return std::ptr::null_mut();
+    }
+
+    let _c_str = unsafe { CStr::from_ptr(config_json) };
+    // MOCK: parse JSON, build agent
+    let llm = Arc::new(OpenAIProvider::new("gpt-4o"));
+    let agent = Agent::new(llm).with_config(AgentConfig::default());
+
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+
+    Box::into_raw(Box::new(AgentHandle {
+        agent: Arc::new(Mutex::new(agent)),
+        rt,
+    }))
+}
+
+#[no_mangle]
+pub extern "C" fn ow_agent_run(
+    handle: *mut AgentHandle,
+    input: *const c_char,
+    out_result: *mut *mut c_char,
+) -> c_int {
+    if handle.is_null() || input.is_null() || out_result.is_null() {
+        return -1;
+    }
+
+    let handle_ref = unsafe { &*handle };
+    let c_str = unsafe { CStr::from_ptr(input) };
+    let input_str = match c_str.to_str() {
+        Ok(s) => s,
+        Err(_) => return -2,
+    };
+
+    let agent = handle_ref.agent.lock().unwrap();
+    
+    // Run async loop using the handle's runtime
+    let res = handle_ref.rt.block_on(async {
+        agent.run(input_str).await
+    });
+
+    match res {
+        Ok(out) => {
+            let c_res = CString::new(out.content).unwrap();
+            unsafe {
+                *out_result = c_res.into_raw();
+            }
+            0
+        }
+        Err(_) => -3,
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn ow_agent_destroy(handle: *mut AgentHandle) {
+    if !handle.is_null() {
+        unsafe {
+            let _ = Box::from_raw(handle);
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn ow_free_string(s: *mut c_char) {
+    if !s.is_null() {
+        unsafe {
+            let _ = CString::from_raw(s);
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn ow_version() -> *const c_char {
+    concat!(env!("CARGO_PKG_VERSION"), "\0").as_ptr() as *const c_char
+}

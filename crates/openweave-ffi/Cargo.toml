@@ -1,0 +1,16 @@
+[package]
+name = "openweave-ffi"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+openweave-core = { path = "../openweave-core" }
+tokio.workspace = true
+
+[build-dependencies]
+cbindgen.workspace = true

@@ -1,0 +1,15 @@
+name: Cross Compile
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest, ubuntu-latest+arm]
+    steps:
+    - uses: actions/checkout@v3
+    - name: Build
+      run: cargo build --release --workspace

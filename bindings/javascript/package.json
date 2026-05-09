@@ -1,0 +1,13 @@
+{
+  "name": "openweave",
+  "version": "0.1.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "dependencies": {
+    "ffi-napi": "^4.0.3",
+    "ref-napi": "^3.0.3"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

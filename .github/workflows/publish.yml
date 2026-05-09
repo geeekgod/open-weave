@@ -1,0 +1,29 @@
+name: Publish
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish-rust:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Publish core
+      run: cargo publish -p openweave-core
+    - name: Publish ffi
+      run: cargo publish -p openweave-ffi
+
+  publish-python:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Publish PyPI
+      run: echo "Publish to PyPI"
+
+  publish-node:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Publish NPM
+      run: echo "Publish to NPM"

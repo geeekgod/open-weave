@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "openweave"
+version = "0.1.0"
+description = "High-performance OSS AI agent framework"
+authors = [{ name="OpenWeave Contributors" }]
+license = { text="Apache-2.0" }
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["."]

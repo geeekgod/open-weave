@@ -1,0 +1,19 @@
+[package]
+name = "openweave-edge"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[features]
+default = ["std"]
+std = ["dep:tokio", "dep:reqwest"]
+edge = []
+wasm = ["dep:wasm-bindgen"]
+
+[dependencies]
+openweave-core = { path = "../openweave-core" }
+tokio = { workspace = true, optional = true }
+reqwest = { workspace = true, optional = true }
+wasm-bindgen = { workspace = true, optional = true }
+embassy-executor = { workspace = true, optional = true }
