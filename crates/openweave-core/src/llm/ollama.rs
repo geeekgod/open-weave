@@ -12,6 +12,21 @@ pub struct OllamaProvider {
 }
 
 impl OllamaProvider {
+    /// Creates a new OllamaProvider configured for the given model.
+    ///
+    /// The provider will use the URL from the `OLLAMA_BASE_URL` environment variable if set;
+    /// otherwise it defaults to `http://localhost:11434`. A new HTTP client is created and
+    /// the given model name is stored for future requests.
+    ///
+    /// # Parameters
+    ///
+    /// - `model`: The name of the Ollama model to use.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let _provider = OllamaProvider::new("ggml-mpt");
+    /// ```
     pub fn new(model: impl Into<String>) -> Self {
         let base_url = std::env::var("OLLAMA_BASE_URL").unwrap_or_else(|_| "http://localhost:11434".into());
         Self {
@@ -21,6 +36,13 @@ impl OllamaProvider {
         }
     }
 
+    /// Sets the provider's base URL and returns the updated instance.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let provider = OllamaProvider::new("my-model").with_base_url("http://localhost:11434");
+    /// ```
     pub fn with_base_url(mut self, base_url: impl Into<String>) -> Self {
         self.base_url = base_url.into();
         self
@@ -29,6 +51,33 @@ impl OllamaProvider {
 
 #[async_trait]
 impl LLMProvider for OllamaProvider {
+    /// Send the provided conversation to Ollama's /api/chat endpoint and return the assistant's reply.
+    ///
+    /// Builds an Ollama-compatible request from `messages` and optional `tools`, posts it to the provider's
+    /// configured base URL, and converts the API response into a `Message` containing the assistant's
+    /// content and any returned tool call metadata.
+    ///
+    /// # Arguments
+    ///
+    /// * `messages` - Slice of conversation `Message` values to send to the model (roles and any tool calls are translated to Ollama's expected shape).
+    /// * `tools` - Slice of JSON function descriptors (each entry should be a function descriptor object); when non-empty these are attached to the request as callable tools.
+    ///
+    /// # Returns
+    ///
+    /// `Message` containing `role: Role::Assistant`, the assistant `content` extracted from the response, and `tool_calls` when the response includes tool invocation data.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use serde_json::json;
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let provider = OllamaProvider::new("gpt-ollama");
+    /// let messages = vec![Message { role: Role::User, content: "Hello".into(), tool_calls: None }];
+    /// let tools = vec![json!({"name": "echo", "parameters": {}})];
+    /// let reply = provider.complete(&messages, &tools).await?;
+    /// assert_eq!(reply.role, Role::Assistant);
+    /// # Ok(()) }
+    /// ```
     async fn complete(&self, messages: &[Message], tools: &[serde_json::Value]) -> Result<Message> {
         let mut api_messages = Vec::new();
         
@@ -116,6 +165,24 @@ impl LLMProvider for OllamaProvider {
         })
     }
 
+    /// Exposes a streaming completion interface for the provider; currently not implemented.
+    ///
+    /// This method is intended to return a stream of incremental completion chunks from the LLM,
+    /// but it currently always returns an error indicating streaming is unsupported.
+    ///
+    /// # Returns
+    ///
+    /// `Err(WeaveError::LlmError)` indicating that streaming is not implemented.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::executor::block_on;
+    /// // assume OllamaProvider and related types are in scope
+    /// let provider = OllamaProvider::new("model");
+    /// let res = block_on(provider.stream(&[], &[]));
+    /// assert!(res.is_err());
+    /// ```
     async fn stream(
         &self,
         _messages: &[Message],

@@ -12,6 +12,17 @@ pub struct OpenAIProvider {
 }
 
 impl OpenAIProvider {
+    /// Create a new OpenAIProvider configured for the specified model.
+    ///
+    /// The returned provider is initialized with a fresh HTTP client, the given model identifier,
+    /// and the API key read from the `OPENAI_API_KEY` environment variable (empty string if unset).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let provider = OpenAIProvider::new("gpt-4");
+    /// // provider can now be used to perform completions (e.g., provider.complete(...))
+    /// ```
     pub fn new(model: impl Into<String>) -> Self {
         let api_key = std::env::var("OPENAI_API_KEY").unwrap_or_default();
         Self {
@@ -21,6 +32,17 @@ impl OpenAIProvider {
         }
     }
 
+    /// Sets the OpenAI API key on the provider and returns the modified instance for method chaining.
+    ///
+    /// Allows overriding the API key that was read from the `OPENAI_API_KEY` environment variable when
+    /// the provider was created.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let provider = OpenAIProvider::new("gpt-4").with_api_key("sk-xxxxxxxx");
+    /// // provider can now be used with the provided API key
+    /// ```
     pub fn with_api_key(mut self, api_key: impl Into<String>) -> Self {
         self.api_key = api_key.into();
         self
@@ -29,6 +51,31 @@ impl OpenAIProvider {
 
 #[async_trait]
 impl LLMProvider for OpenAIProvider {
+    /// Send the provided conversation and optional tool definitions to OpenAI's Chat Completions API and return the assistant's reply as a `Message`.
+    ///
+    /// The request body includes `model`, the supplied `messages` converted to the OpenAI chat format, and `tools` when provided. If the API response contains `tool_calls`, they are parsed into the returned `Message`'s `tool_calls` field.
+    ///
+    /// # Parameters
+    ///
+    /// - `messages`: The conversation history to send; each `Message` will be translated to the corresponding OpenAI chat message and may include function call hints.
+    /// - `tools`: Optional JSON values describing functions to expose to the model; each entry is sent as a `type: "function"` with the provided `function` object.
+    ///
+    /// # Returns
+    ///
+    /// A `Message` containing the assistant's content and, when present, a vector of parsed `ToolCall`s in `tool_calls`.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use openweave_core::llm::{OpenAIProvider, Message, Role};
+    /// # async fn doc_example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let provider = OpenAIProvider::new("gpt-4").with_api_key("sk-test");
+    /// let messages = [Message { role: Role::User, content: "Say hello".into(), tool_calls: None }];
+    /// let reply = provider.complete(&messages, &[]).await?;
+    /// assert!(reply.content.len() > 0);
+    /// # Ok(())
+    /// # }
+    /// ```
     async fn complete(&self, messages: &[Message], tools: &[serde_json::Value]) -> Result<Message> {
         let mut body = json!({
             "model": self.model,
@@ -121,6 +168,25 @@ impl LLMProvider for OpenAIProvider {
         })
     }
 
+    /// Provides a streaming completion interface for the provider; currently unimplemented.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use openweave_core::llm::openai::OpenAIProvider;
+    /// # use openweave_core::llm::{Message, Role};
+    /// # tokio_test::block_on(async {
+    /// let provider = OpenAIProvider::new("gpt-4");
+    /// let messages: Vec<Message> = vec![];
+    /// let tools: Vec<serde_json::Value> = vec![];
+    /// let res = provider.stream(&messages, &tools).await;
+    /// assert!(res.is_err());
+    /// # });
+    /// ```
+    ///
+    /// # Returns
+    ///
+    /// An error `WeaveError::LlmError` with the message `"Stream not implemented"`.
     async fn stream(
         &self,
         _messages: &[Message],

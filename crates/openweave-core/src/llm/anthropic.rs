@@ -12,6 +12,27 @@ pub struct AnthropicProvider {
 }
 
 impl AnthropicProvider {
+    /// Constructs an AnthropicProvider configured for the given model.
+    ///
+    /// The provider initializes an internal HTTP client and loads the API key from the
+    /// `ANTHROPIC_API_KEY` environment variable; if the variable is unset, the API key
+    /// will be an empty string.
+    ///
+    /// # Parameters
+    ///
+    /// - `model`: The Anthropic model name to use (for example, `"claude-2"`).
+    ///
+    /// # Returns
+    ///
+    /// A new `AnthropicProvider` with an initialized HTTP client and the API key loaded from
+    /// `ANTHROPIC_API_KEY` (empty string if the environment variable is not set).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let provider = AnthropicProvider::new("claude-2");
+    /// assert_eq!(provider.model, "claude-2");
+    /// ```
     pub fn new(model: impl Into<String>) -> Self {
         let api_key = std::env::var("ANTHROPIC_API_KEY").unwrap_or_default();
         Self {
@@ -21,6 +42,13 @@ impl AnthropicProvider {
         }
     }
 
+    /// Set the Anthropic API key on the provider and return the updated instance.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let provider = AnthropicProvider::new("claude-v1").with_api_key("sk-xxxx");
+    /// ```
     pub fn with_api_key(mut self, api_key: impl Into<String>) -> Self {
         self.api_key = api_key.into();
         self
@@ -29,6 +57,28 @@ impl AnthropicProvider {
 
 #[async_trait]
 impl LLMProvider for AnthropicProvider {
+    /// Sends the given conversation and tool schemas to Anthropic's Messages API and returns the assistant's response as a `Message`.
+    ///
+    /// The function converts internal `Message` entries into Anthropic-compatible messages (aggregating system prompts, encoding assistant text and tool usages, and mapping tool schemas' `parameters` to Anthropic `input_schema`), posts the request to the Anthropic endpoint, and parses the response into an assistant `Message` containing concatenated text and any tool calls found.
+    ///
+    /// # Returns
+    ///
+    /// `Ok(Message)` with `role = Role::Assistant`, `content` set to the concatenated assistant text from the API response, and `tool_calls` set to `Some(...)` if the response included tool-use blocks, otherwise `None`.
+    /// `Err(WeaveError::LlmError)` if the HTTP request fails, the API responds with a non-success status, or the response body cannot be parsed.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use openweave_core::llm::{AnthropicProvider, Message, Role};
+    /// # // Setup omitted: create provider with model and API key.
+    /// # async fn example(provider: &AnthropicProvider) -> anyhow::Result<()> {
+    /// let messages: Vec<Message> = vec![];
+    /// let tools: Vec<serde_json::Value> = vec![];
+    /// let res = provider.complete(&messages, &tools).await?;
+    /// assert_eq!(res.role, Role::Assistant);
+    /// # Ok(())
+    /// # }
+    /// ```
     async fn complete(&self, messages: &[Message], tools: &[serde_json::Value]) -> Result<Message> {
         let mut system_prompts = Vec::new();
         let mut anthropic_messages = Vec::new();
@@ -154,6 +204,23 @@ impl LLMProvider for AnthropicProvider {
         })
     }
 
+    /// Provides a stream of incremental assistant output for the given conversation and tools.
+    ///
+    /// Currently the provider does not implement streaming and returns an error indicating streaming is not implemented.
+    ///
+    /// # Returns
+    ///
+    /// `Ok` with a pinned, boxed stream that yields `Result<String>` for incremental model output when streaming is supported, or `Err(WeaveError::LlmError)` indicating that streaming is not available.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use openweave_core::llm::AnthropicProvider;
+    /// # use tokio_test::block_on;
+    /// let prov = AnthropicProvider::new("model");
+    /// let res = block_on(async { prov.stream(&[], &[]).await });
+    /// assert!(res.is_err());
+    /// ```
     async fn stream(
         &self,
         _messages: &[Message],

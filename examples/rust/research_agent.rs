@@ -8,6 +8,27 @@ mod web_search;
 #[path = "../../tools/file_ops.rs"]
 mod file_ops;
 
+/// Runs a sample research agent that queries the web about Rust's history using a Groq LLM
+/// and writes the answer to `research.txt`.
+///
+/// This function:
+/// - Loads `GROQ_API_KEY` from a local `.env` file (preferring a line starting with `GROQ_API_KEY=`),
+///   falling back to the `GROQ_API_KEY` environment variable.
+/// - Creates a `GroqProvider` LLM and an `Agent` configured to use `web_search` and `file_ops` tools,
+///   with a maximum of 5 iterations.
+/// - Registers the `web_search` and `file_ops` tools, runs the agent on a research prompt,
+///   prints the final result and metrics, then prints and removes `research.txt` if created.
+///
+/// # Examples
+///
+/// ```
+/// // Run the async `main` from a synchronous test/example harness.
+/// let rt = tokio::runtime::Runtime::new().unwrap();
+/// rt.block_on(async {
+///     // `main` returns a Result; propagate failure in examples.
+///     crate::main().await.unwrap();
+/// });
+/// ```
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let key = std::fs::read_to_string(".env")

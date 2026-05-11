@@ -12,6 +12,15 @@ pub struct GoogleProvider {
 }
 
 impl GoogleProvider {
+    /// Creates a new `GoogleProvider` using the given model identifier and the
+    /// `GOOGLE_API_KEY` environment variable (empty if unset).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let provider = GoogleProvider::new("models/chat-bison-001");
+    /// assert_eq!(provider.model, "models/chat-bison-001");
+    /// ```
     pub fn new(model: impl Into<String>) -> Self {
         let api_key = std::env::var("GOOGLE_API_KEY").unwrap_or_default();
         Self {
@@ -21,6 +30,16 @@ impl GoogleProvider {
         }
     }
 
+    /// Set the provider's API key and return the updated provider.
+    ///
+    /// This replaces the stored API key with `api_key` and returns the modified `GoogleProvider`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let provider = GoogleProvider::new("models/text-bison-001").with_api_key("my-secret-key");
+    /// assert_eq!(provider.api_key, "my-secret-key");
+    /// ```
     pub fn with_api_key(mut self, api_key: impl Into<String>) -> Self {
         self.api_key = api_key.into();
         self
@@ -29,6 +48,22 @@ impl GoogleProvider {
 
 #[async_trait]
 impl LLMProvider for GoogleProvider {
+    /// Sends the provided chat history to Google's Generative Language API and returns the assistant's reply and any function (tool) calls.
+    ///
+    /// The method converts `messages` into the API's `contents` format, optionally includes a `systemInstruction` and provided `tools`, calls the model's `:generateContent` endpoint, and parses the first candidate's `content.parts` into the assistant `content` string and a list of `ToolCall`s (if present).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use openweave_core::llm::{GoogleProvider, Message, Role};
+    /// # use serde_json::json;
+    /// # tokio_test::block_on(async {
+    /// let provider = GoogleProvider::new("models/example-model");
+    /// let messages = vec![Message { role: Role::User, content: "Hello".into(), tool_calls: None }];
+    /// let res = provider.complete(&messages, &[]).await.unwrap();
+    /// assert_eq!(res.role, Role::Assistant);
+    /// # });
+    /// ```
     async fn complete(&self, messages: &[Message], tools: &[serde_json::Value]) -> Result<Message> {
         let mut contents = Vec::new();
         let mut system_instruction = None;
@@ -155,6 +190,21 @@ impl LLMProvider for GoogleProvider {
         })
     }
 
+    /// Indicates this provider does not support streaming responses.
+    ///
+    /// # Returns
+    ///
+    /// `Err(WeaveError::LlmError)` describing that streaming is not implemented.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use futures::executor::block_on;
+    /// # use openweave_core::llm::GoogleProvider;
+    /// let provider = GoogleProvider::new("model");
+    /// let res = block_on(provider.stream(&[], &[]));
+    /// assert!(res.is_err());
+    /// ```
     async fn stream(
         &self,
         _messages: &[Message],
